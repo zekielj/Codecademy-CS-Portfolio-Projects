@@ -3,11 +3,14 @@
 #ASSUMPTIONS: 
 #   Requires install of termcolor (in Terminal: "pip install termcolor")
 #VERSION HISTORY: 
-#   2013-09-10: Initial
+#   2023-09-10: Initial
+#   2023-09-14: Minor fixes, including properly crediting player_bet (x2)
 #PLANNED IMPROVEMENTS: 
 #   1. Add color to terminal text for total rows to differentiate, improve readability
 #   2. Add "Split" option
 #   3. Support multiplayer
+#   4. Elegantly handle aces
+#   5. Generate a card_deck once per game run instead of once every round
 
 from time import sleep
 from os import system
@@ -66,7 +69,7 @@ def play_round(player_bank):
     
     #Instantiate new card deck for each round (not ideal, but it will work for now)
     #TODO: make the card deck last throughout rounds
-    card_deck = CardDeck(6)
+    card_deck = CardDeck()
     player_hand = PlayerHand()
     dealer_hand = PlayerHand()
     dealer_draw = True
@@ -78,6 +81,7 @@ def play_round(player_bank):
         system('clear')
         print(dealer_hand.printHand(True), "\n")
         print(player_hand.printHand(), "\n")
+        print("deck length = " + str(len(card_deck.available_cards)))
         print("""What do you want to do now? 
             1. Hit
             2. Stand
@@ -92,7 +96,6 @@ def play_round(player_bank):
                 if player_hand.hand_min_value > 21: 
                     print("Sorry, your hand went bust.")
                     dealer_draw = False
-                    sleep (2)
                     player_bank -= player_bet
                     break
                 else: continue
@@ -137,21 +140,21 @@ def play_round(player_bank):
             print(dealer_hand.printHand(True))
             sleep(1)
 
-    print("\n\nAND THE FINAL SCORE IS ... ")
-    print("You have {a} points and the dealer has {b} points.".format(
-        a = player_hand.hand_min_value,
-        b = dealer_hand.hand_min_value))
-    if dealer_hand.hand_min_value > 21: 
-        print("The dealer went bust - YOU WIN!")
-        player_bank += player_bet
-    elif dealer_hand.hand_min_value == player_hand.hand_min_value: 
-        print("You have the same score - this game was a PUSH.")
-    elif dealer_hand.hand_min_value > player_hand.hand_min_value: 
-        print("The dealer had more points - YOU LOST.")
-        player_bank -= player_bet
-    else: 
-        print("You have more points! YOU WIN THIS ROUND!")
-        player_bank += player_bet
+        print("\n\nAND THE FINAL SCORE IS ... ")
+        print("You have {a} points and the dealer has {b} points.".format(
+            a = player_hand.hand_min_value,
+            b = dealer_hand.hand_min_value))
+        if dealer_hand.hand_min_value > 21: 
+            print("The dealer went bust - YOU WIN!")
+            player_bank += player_bet * 2
+        elif dealer_hand.hand_min_value == player_hand.hand_min_value: 
+            print("You have the same score - this game was a PUSH.")
+        elif dealer_hand.hand_min_value > player_hand.hand_min_value: 
+            print("The dealer had more points - YOU LOST.")
+            player_bank -= player_bet
+        else: 
+            print("You have more points! YOU WIN THIS ROUND!")
+            player_bank += player_bet * 2
 
     sleep (3)
 
@@ -220,8 +223,9 @@ class CardDeck:
         #Double check number of cards remaining in deck, and reshuffle if it's <17% of original size
         if (len(self.available_cards) / (self.number_of_decks * 52)) < 0.17: 
             print("One moment - Shuffling the Deck", end='')
+            self.shuffleDeck()
             i = 0
-            while 0<3: sleep(1); print(" .",end='')
+            while i<3: sleep(1); print(" .",end=''); i += 1
 
         #Return a random card from the cards still in the deck, and "pop" it out to the player's hand
         return self.available_cards.pop(random.randint(0,int(len(self.available_cards))-1))
