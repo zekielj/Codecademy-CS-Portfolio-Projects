@@ -10,7 +10,7 @@
 #   2. Add "Split" option
 #   3. Support multiplayer
 #   4. Elegantly handle aces
-#   5. Generate a card_deck once per game run instead of once every round
+#   5. Clear the card deck when re-shuffling, it still isn't clearing them before re-shuffling a deck.
 
 from time import sleep
 from os import system
@@ -37,9 +37,12 @@ def main():
     player_bank = 1000
     sleep (3) 
 
+    #instantiate card deck for all rounds of play
+    card_deck = CardDeck(1)
+
     #Begin play, continue as long as player says so or until bank reaches zero
     while player_bank>0:
-        player_bank = play_round(player_bank)
+        player_bank = play_round(player_bank, card_deck)
         system('clear')
         go_again = input("Would you like to play again? You have ${amt} in your bank. (Y/N) ".format(amt=player_bank))
         if go_again.upper() == "Y":continue
@@ -49,7 +52,7 @@ def main():
     else: final_player_bank = player_bank
     print("\nYou ended the game with ${amt}. \n".format(amt=final_player_bank))
 
-def play_round(player_bank):
+def play_round(player_bank, card_deck):
     system('clear')
     print("Let's play a round!")
     player_bet = 0
@@ -67,9 +70,6 @@ def play_round(player_bank):
             player_bet = int(player_bet_dirty)
             break
     
-    #Instantiate new card deck for each round (not ideal, but it will work for now)
-    #TODO: make the card deck last throughout rounds
-    card_deck = CardDeck()
     player_hand = PlayerHand()
     dealer_hand = PlayerHand()
     dealer_draw = True
@@ -206,6 +206,7 @@ class CardDeck:
         self.shuffleDeck()
 
     def shuffleDeck(self):
+        #TODO - this still isn't working to clear the cards
         self.card_options.clear() #Start by clearing any cards still in the deck
         
         #Create list of available card options
@@ -220,12 +221,13 @@ class CardDeck:
             for option in self.card_options: self.available_cards.append(option)
 
     def drawCard(self): 
-        #Double check number of cards remaining in deck, and reshuffle if it's <17% of original size
+        #Double check number of cards remaining in deck, and reshuffle if it's <17% (one-sixth) of original size
         if (len(self.available_cards) / (self.number_of_decks * 52)) < 0.17: 
             print("One moment - Shuffling the Deck", end='')
             self.shuffleDeck()
             i = 0
             while i<3: sleep(1); print(" .",end=''); i += 1
+            print("\n\n")
 
         #Return a random card from the cards still in the deck, and "pop" it out to the player's hand
         return self.available_cards.pop(random.randint(0,int(len(self.available_cards))-1))
