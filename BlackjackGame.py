@@ -55,6 +55,21 @@ def main():
 def play_round(player_bank, card_deck):
     system('clear')
     print("Let's play a round!")
+    
+    #Double check number of cards remaining in deck, and reshuffle if it's <17% (one-sixth) of original size
+    if (len(card_deck.available_cards) / (card_deck.number_of_decks * 52)) < 0.9: 
+        print('\n')
+        shufflemessage = "One moment - Shuffling the Deck"
+        print(shufflemessage, end='\r')
+        card_deck.shuffleDeck()
+        i = 0
+        while i < 3: 
+            sleep(1)
+            shufflemessage += " ."
+            print(shufflemessage, end='\r')
+            i += 1
+        print("\n\n")
+
     player_bet = 0
     #Ask how much player wants to bet, and scrub input for type and less-than available bank.
     while True:
@@ -72,7 +87,7 @@ def play_round(player_bank, card_deck):
     
     player_hand = PlayerHand()
     dealer_hand = PlayerHand()
-    dealer_draw = True
+    dealer_draw = True #Condition used to skip dealer portion of hand later if not needed
     player_hand.addCard(card_deck.drawCard())
     player_hand.addCard(card_deck.drawCard())
     dealer_hand.addCard(card_deck.drawCard())
@@ -203,12 +218,7 @@ class CardDeck:
     
     def __init__(self,num_decks = 1): 
         self.number_of_decks = num_decks
-        self.shuffleDeck()
 
-    def shuffleDeck(self):
-        #TODO - this still isn't working to clear the cards
-        self.card_options.clear() #Start by clearing any cards still in the deck
-        
         #Create list of available card options
         rank_options = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"]
         suit_options = ["Spades", "Clubs", "Hearts", "Diamonds"]
@@ -216,19 +226,16 @@ class CardDeck:
             for suit in suit_options: 
                 self.card_options.append(Card(rank,suit))
 
+        self.shuffleDeck()
+
+    def shuffleDeck(self):
+        self.available_cards.clear() #Start by clearing any cards still in the deck
+        
         #Create card deck based on number of standard card decks included in dealer's deck)        
         for i in range(0,int(self.number_of_decks)): 
             for option in self.card_options: self.available_cards.append(option)
 
     def drawCard(self): 
-        #Double check number of cards remaining in deck, and reshuffle if it's <17% (one-sixth) of original size
-        if (len(self.available_cards) / (self.number_of_decks * 52)) < 0.17: 
-            print("One moment - Shuffling the Deck", end='')
-            self.shuffleDeck()
-            i = 0
-            while i<3: sleep(1); print(" .",end=''); i += 1
-            print("\n\n")
-
         #Return a random card from the cards still in the deck, and "pop" it out to the player's hand
         return self.available_cards.pop(random.randint(0,int(len(self.available_cards))-1))
 
