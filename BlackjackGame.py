@@ -5,12 +5,14 @@
 #VERSION HISTORY: 
 #   2023-09-10: Initial
 #   2023-09-14: Minor fixes, including properly crediting player_bet (x2)
+#   2023-09-17: Fixed issue with clearing of card_deck when shuffling (wasn't previously clearing correctly)
 #PLANNED IMPROVEMENTS: 
 #   1. Add color to terminal text for total rows to differentiate, improve readability
-#   2. Add "Split" option
+#   2. Support persistent players & balances (read/write to file)
 #   3. Support multiplayer
 #   4. Elegantly handle aces
-#   5. Clear the card deck when re-shuffling, it still isn't clearing them before re-shuffling a deck.
+#   5. Print ASCII-art-style win/lose screen at completion
+#   6. Handle floating-point math better with surrenders, maybe cast back to int if no decimal value
 
 from time import sleep
 from os import system
@@ -54,21 +56,19 @@ def main():
 
 def play_round(player_bank, card_deck):
     system('clear')
-    print("Let's play a round!")
+    print("Let's play a round! \n")
     
     #Double check number of cards remaining in deck, and reshuffle if it's <17% (one-sixth) of original size
-    if (len(card_deck.available_cards) / (card_deck.number_of_decks * 52)) < 0.9: 
-        print('\n')
+    if (len(card_deck.available_cards) / (card_deck.number_of_decks * 52)) < 0.17: 
         shufflemessage = "One moment - Shuffling the Deck"
         print(shufflemessage, end='\r')
         card_deck.shuffleDeck()
         i = 0
         while i < 3: 
-            sleep(1)
+            sleep(0.5)
             shufflemessage += " ."
             print(shufflemessage, end='\r')
             i += 1
-        print("\n\n")
 
     player_bet = 0
     #Ask how much player wants to bet, and scrub input for type and less-than available bank.
@@ -85,8 +85,8 @@ def play_round(player_bank, card_deck):
             player_bet = int(player_bet_dirty)
             break
     
-    player_hand = PlayerHand()
-    dealer_hand = PlayerHand()
+    player_hand = PlayerHand() #Create object for player's hand
+    dealer_hand = PlayerHand() #Create object for dealer's hand
     dealer_draw = True #Condition used to skip dealer portion of hand later if not needed
     player_hand.addCard(card_deck.drawCard())
     player_hand.addCard(card_deck.drawCard())
@@ -96,7 +96,6 @@ def play_round(player_bank, card_deck):
         system('clear')
         print(dealer_hand.printHand(True), "\n")
         print(player_hand.printHand(), "\n")
-        print("deck length = " + str(len(card_deck.available_cards)))
         print("""What do you want to do now? 
             1. Hit
             2. Stand
@@ -108,7 +107,7 @@ def play_round(player_bank, card_deck):
                 player_hand.addCard(card_deck.drawCard())
                 system('clear')
                 print(player_hand.printHand())
-                if player_hand.hand_min_value > 21: 
+                if player_hand.score > 21: 
                     print("Sorry, your hand went bust.")
                     dealer_draw = False
                     player_bank -= player_bet
@@ -128,7 +127,7 @@ def play_round(player_bank, card_deck):
                     system('clear')
                     player_hand.addCard(card_deck.drawCard())
                     print(player_hand.printHand())
-                    if player_hand.hand_min_value > 21: 
+                    if player_hand.score > 21: 
                         print("Sorry, your hand went bust.")
                         dealer_draw = False
                         player_bank -= player_bet
@@ -148,7 +147,7 @@ def play_round(player_bank, card_deck):
 
     if dealer_draw:
         #Complete the dealer's draw on this round
-        while dealer_hand.hand_min_value < 17: 
+        while dealer_hand.score < 17: 
             dealer_hand.addCard(card_deck.drawCard())
             system('clear')
             print(player_hand.printHand())
@@ -157,14 +156,14 @@ def play_round(player_bank, card_deck):
 
         print("\n\nAND THE FINAL SCORE IS ... ")
         print("You have {a} points and the dealer has {b} points.".format(
-            a = player_hand.hand_min_value,
-            b = dealer_hand.hand_min_value))
-        if dealer_hand.hand_min_value > 21: 
+            a = player_hand.score,
+            b = dealer_hand.score))
+        if dealer_hand.score > 21: 
             print("The dealer went bust - YOU WIN!")
             player_bank += player_bet * 2
-        elif dealer_hand.hand_min_value == player_hand.hand_min_value: 
+        elif dealer_hand.score == player_hand.score: 
             print("You have the same score - this game was a PUSH.")
-        elif dealer_hand.hand_min_value > player_hand.hand_min_value: 
+        elif dealer_hand.score > player_hand.score: 
             print("The dealer had more points - YOU LOST.")
             player_bank -= player_bet
         else: 
@@ -175,26 +174,6 @@ def play_round(player_bank, card_deck):
 
     player_hand.clearHand()   #get rid of all details of current hand
     return player_bank
-
-def draw_table():
-    system('clear')
-    print("""
-          ====================================================================================================
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          |
-          """)
 
 class Card: 
     value = 0
@@ -245,20 +224,30 @@ class PlayerHand:
         self.score = 0
         self.cards = []
         self.hand_min_value = 0
+        self.aces_high = 0
 
     def addCard(self,card):
         self.cards.append(card)
         if card.rank == "Ace":
             self.hasAce = True
-        self.hand_min_value += card.value
+            if self.score + 11 <= 21: 
+                self.score += 11
+                self.aces_high += 1
+            else: 
+                self.score += 1
+        else: self.score += card.value
+
+        if (self.score > 21) and (self.aces_high > 0): 
+            self.score -= 10
+            self.aces_high -= 1
     
-    def getScore(self):
-        finalscore = 0
-        number_of_aces = 0
-        for card in self.cards: 
-            if card.rank == "Ace": number_of_aces += 1
-            else: finalscore += card.value
-        return finalscore
+#    def getScore(self):
+#        finalscore = 0
+#        number_of_aces = 0
+#        for card in self.cards: 
+#            if card.rank == "Ace": number_of_aces += 1
+#            else: finalscore += card.value
+#        return finalscore
 
     def clearHand(self):
         self.score = 0
@@ -271,7 +260,7 @@ class PlayerHand:
         for card in self.cards: 
             message += "   The {num} of {suit}".format(num=card.rank, suit=card.suit)
             message += "\n"
-        message += "The minimum score is {x}.".format(x=self.hand_min_value)
+        message += "The score is currently {x}.".format(x=self.score)
         return message
 
 class Player:
