@@ -10,7 +10,7 @@
 #   1. Add color to terminal text for total rows to differentiate, improve readability
 #   2. Support persistent players & balances (read/write to file)
 #   3. Support multiplayer
-#   4. Elegantly handle aces
+#   4. Support "Split"
 #   5. Print ASCII-art-style win/lose screen at completion
 #   6. Handle floating-point math better with surrenders, maybe cast back to int if no decimal value
 
